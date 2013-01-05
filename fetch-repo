@@ -42,70 +42,62 @@ buildpacks=($buildpack_root/*)
 
 selected_buildpack=
 
-if [ -n "$BUILDPACK_URL" ]; then
-    echo_title "Fetching custom buildpack"
-    buildpack="$buildpack_root/custom"
-    rm -fr "$buildpack"
-    unset GIT_WORK_TREE
+for buildpack in "${buildpacks[@]}"; do
+  ($buildpack/bin/detect "$build_root") > /dev/null 2>&1 && selected_buildpack=$buildpack 
+done
 
-    git clone --depth=1 "$BUILDPACK_URL" "$buildpack"
-    selected_buildpack="$buildpack"
-    buildpack_name=$($buildpack/bin/detect "$build_root") && selected_buildpack=$buildpack
-  else
-    for buildpack in "${buildpacks[@]}"; do
-      buildpack_name=$($buildpack/bin/detect "$build_root") && selected_buildpack=$buildpack && break
-    done
-  fi
+buildpack_name=
+if [ -n "$selected_buildpack" ]; then
+  buildpack_name=${selected_buildpack##*/} 
+  echo_title "$buildpack_name app detected"
+else
+  echo_title "Unable to select a buildpack"
+  exit 1
+fi
 
-  if [ -n "$selected_buildpack" ]; then
-    echo_title "$buildpack_name app detected"
-  else
-    echo_title "Unable to select a buildpack"
-    exit 1
-  fi
+cache_root=/tmp/cache
+mkdir -p $cache_root
 
-  cache_root=/tmp/cache
-  mkdir -p $cache_root
-
-  ($selected_buildpack/bin/compile "$build_root" "$cache_root") | process
+($selected_buildpack/bin/compile "$build_root" "$cache_root") | process
 
 
-  echo_title "Discovering process types"
-  release_output=$($selected_buildpack/bin/release "$build_root" "$cache_root") 
-  default_types=$(echo "$release_output" | sed -ne '/^default/,/(\z|^[a-z])/  {
-      /^[a-z]/n
-      s/  //p
-  }')
+echo_title "Discovering process types"
+release_output=$($selected_buildpack/bin/release "$build_root" "$cache_root") 
 
-  procfile=
-  if [ -f "$build_root/Procfile" ]; then
-    procfile=$(cat "$build_root/Procfile" | sed 's/^/  /')
-    echo_normal "Procfile declares types -> " $(cat "$build_root/Procfile" | cut -d: -f1 | tr $'\n' ',' | sed -e 's/,$//')
-  else
-    procfile=$(echo "$default_types" | sed -e 's/^/  /')
-  fi
 
-  echo_normal "Default process types for $buildpack_name -> " $(echo "$default_types" | cut -d: -f1 | tr $'\n' ',' | sed -e 's/,$//')
+default_types=$(echo "$release_output" | sed -ne '/^default/,/(\z|^[a-z])/  {
+    /^[a-z]/n
+    s/  //p
+}')
 
-  if [ -f "$build_root/.slugignore" ]; then
-    tar --exclude='.git' -X "$build_root/.slugignore" -C $build_root -czf /tmp/slug.tgz .
-  else
-    tar --exclude='.git' -C $build_root -czf /tmp/slug.tgz .
-  fi
+procfile=
+if [ -f "$build_root/Procfile" ]; then
+  procfile=$(cat "$build_root/Procfile" | sed 's/^/  /')
+  echo_normal "Procfile declares types -> " $(cat "$build_root/Procfile" | cut -d: -f1 | tr $'\n' ',' | sed -e 's/,$//')
+else
+  procfile=$(echo "$default_types" | sed -e 's/^/  /')
+fi
 
-  slug_size=$(du -Sh /tmp/slug.tgz | cut -d' ' -f1)
-  echo_title "Compiled slug size is $slug_size"
+echo_normal "Default process types for $buildpack_name -> " $(echo "$default_types" | cut -d: -f1 | tr $'\n' ',' | sed -e 's/,$//')
 
-  echo_normal "Using slug_id: ${slug_id}"
-  release_payload=$(echo -e "${release_output}\npstable:\n${procfile}\ncommit: $NEWREV\nslug_id: ${slug_id}")
-  curl -0 -s -o /dev/null -X PUT -T /tmp/slug.tgz "$slug_put_url" 
+if [ -f "$build_root/.slugignore" ]; then
+  tar --exclude='.git' -X "$build_root/.slugignore" -C $build_root -czf /tmp/slug.tgz .
+else
+  tar --exclude='.git' -C $build_root -czf /tmp/slug.tgz .
+fi
 
-  release_number=$(curl --insecure -s -X POST -H 'Content-Type: text/plain' --data-binary "$release_payload" "$push_code_url")
+slug_size=$(du -Sh /tmp/slug.tgz | cut -d' ' -f1)
+echo_title "Compiled slug size is $slug_size"
 
-  echo_title "Launching... done v" $release_number
-  echo_normal "$dyno_web_url deployed to Slotbox"
-  echo_normal $'\n'
+echo_normal "Using slug_id: ${slug_id}"
+release_payload=$(echo -e "${release_output}\npstable:\n${procfile}\ncommit: $NEWREV\nslug_id: ${slug_id}")
+curl -0 -s -o /dev/null -X PUT -T /tmp/slug.tgz "$slug_put_url" 
 
+release_number=$(curl -s -X POST -H 'Content-Type: text/plain' --data-binary "$release_payload" "$push_code_url")
+
+echo_title "Launching... done v" $release_number
+echo_normal "$dyno_web_url deployed to Openruko"
+echo_normal $'\n'
 
 # Tar and store slug
 set -o pipefail 
