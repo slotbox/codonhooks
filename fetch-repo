@@ -29,6 +29,7 @@ echo_title "Slotbox fetching repo from $1 ..."
 build_root=/tmp/checkout
 mkdir -p $build_root
 merge_result=$(GIT_WORK_TREE=$build_root git merge FETCH_HEAD)
+NEWREV=$(GIT_WORK_TREE=$build_root git rev-parse HEAD)
 
 if [ "$merge_result" == "Already up-to-date." ]
 then
@@ -102,7 +103,7 @@ if [ -n "$BUILDPACK_URL" ]; then
   release_number=$(curl --insecure -s -X POST -H 'Content-Type: text/plain' --data-binary "$release_payload" "$push_code_url")
 
   echo_title "Launching... done v" $release_number
-  echo_normal "$dyno_web_url deployed to Openruko"
+  echo_normal "$dyno_web_url deployed to Slotbox"
   echo_normal $'\n'
 
 
