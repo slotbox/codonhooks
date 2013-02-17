@@ -1,5 +1,5 @@
 language: bash
 before_install:
  - sudo apt-get install expect
- - gem install foreman
+ - rvmsudo gem install foreman
 script: sudo ./run-tests.sh
