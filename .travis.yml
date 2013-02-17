@@ -1,2 +1,4 @@
 language: bash
+before_install:
+ - sudo apt-get install expect
 script: sudo ./run-tests.sh
