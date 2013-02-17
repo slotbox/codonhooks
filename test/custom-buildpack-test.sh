@@ -26,10 +26,9 @@ cat >> .env << EOF
 PATH=bin:$PATH
 EOF
 
-expect << EOF
-  spawn sudo foreman start
-  expect "hello world"
-  expect eof
-EOF
+if foreman start | grep "hello world"
+  then echo "Foreman loaded successfully"
+  else echo "Foreman failed to successfully load" && exit 1
+fi
 
 rm -fr /tmp/buildpacks/buildpacks/custom
