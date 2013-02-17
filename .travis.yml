@@ -2,4 +2,4 @@ language: bash
 before_install:
  - sudo apt-get install expect
  - gem install foreman
-script: ./run-tests.sh
+script: ./test/node-test.sh
