@@ -4,6 +4,12 @@ set -e
 
 dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# Travis CI is currently only 32 bit, so we need to use 32 bit node binaries for now.
+# TODO: Remove when Travis CI goes 64 bit.
+if [[ "$TRAVIS" = "true" ]]; then
+  export BUILDPACK_URL=git://github.com/slotbox/heroku-buildpack-nodejs.git
+fi
+
 expect << EOF
   spawn $dir/fetch-repo-launcher.sh https://github.com/slotbox/nodejs-hello-world.git
   expect "Node.js app detected"

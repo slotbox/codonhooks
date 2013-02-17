@@ -23,7 +23,8 @@ then
 fi
 
 rm -rf /app
-mkdir -p /app
+sudo mkdir -p /app
+sudo chmod 777 /app
 mv /tmp/checkout/* /app
 cd /app
 
