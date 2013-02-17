@@ -2,51 +2,10 @@
 
 set -e
 
-node_example="/tmp/checkout"
-
-rm -fr $node_example
-mkdir -p $node_example
-
-cat >> "$node_example/server.js" <<EOF
-  var express = require('express');
-  var app = express();
-  app.get('/', function(req, res){
-    res.send('Hello World');
-  });
-  var port = process.env.PORT;
-  app.listen(port);
-  console.log('Listening on port ' + port);
-EOF
-
-cat >> "$node_example/Procfile" << EOF
-web: node server.js
-EOF
-
-cat >> "$node_example/package.json" <<EOF
-{
-  "name": "hello-world",
-  "description": "hello world test app",
-  "version": "0.0.1",
-  "private": true,
-  "engines": {
-    "node": "0.8.x",
-    "npm": "1.1.x"
-  },
-  "dependencies": {
-    "express": "3.x"
-  }
-}
-EOF
-
-dir=`pwd`
-cd $node_example
-git init
-git add -A
-git commit -m "first commit"
-cd $dir
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 expect << EOF
-  spawn ./pre-receive-launcher.sh node-example
+  spawn $dir/fetch-repo-launcher.sh https://github.com/slotbox/nodejs-hello-world.git
   expect "Node.js app detected"
   expect "Fetching Node.js binaries"
   expect "Vendoring node into slug"
@@ -54,7 +13,7 @@ expect << EOF
   expect "express"
   expect "Discovering process types"
   expect "Procfile declares types -> web"
-  expect "Default process types for nodejs"
+  expect "Default process types for Node.js"
   expect "Compiled slug size is "
   expect "Using slug_id: 1234"
   expect eof
@@ -66,9 +25,19 @@ PATH=bin:$PATH
 PORT=9999
 EOF
 
+# Start foreman outside expect because difficulty successfully 
+# sending SIGINT to clsoe down all child processes
+foreman start &
+pid=$!
+sleep 5
+
 expect << EOF
-  spawn foreman start
-  expect "Listening on port"
-  expect eof
+  spawn curl localhost:9999
+  expect "Hello World :)"
 EOF
+
+# Kill foreman and all child processes
+kill -2 $pid
+
+
 

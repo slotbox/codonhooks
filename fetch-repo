@@ -24,7 +24,7 @@ function process() {
 echo_normal $'\n'
 echo_title "Slotbox fetching repo from $1 ..."
 
-/usr/bin/git fetch $1 >/dev/null 2>&1
+/usr/bin/git fetch $1 >/dev/null
 
 build_root=/tmp/checkout
 mkdir -p $build_root
@@ -41,14 +41,22 @@ buildpack_root=/tmp/buildpacks/buildpacks
 buildpacks=($buildpack_root/*)
 
 selected_buildpack=
+if [ -n "$BUILDPACK_URL" ]; then
+  echo_title "Fetching custom buildpack"
+  buildpack="$buildpack_root/custom"
+  rm -fr "$buildpack"
+  unset GIT_WORK_TREE
 
-for buildpack in "${buildpacks[@]}"; do
-  ($buildpack/bin/detect "$build_root") > /dev/null 2>&1 && selected_buildpack=$buildpack 
-done
+  git clone --depth=1 "$BUILDPACK_URL" "$buildpack"
+  selected_buildpack="$buildpack"
+  buildpack_name=$($buildpack/bin/detect "$build_root") && selected_buildpack=$buildpack
+else
+  for buildpack in "${buildpacks[@]}"; do
+    buildpack_name=$($buildpack/bin/detect "$build_root") && selected_buildpack=$buildpack && break
+  done
+fi
 
-buildpack_name=
 if [ -n "$selected_buildpack" ]; then
-  buildpack_name=${selected_buildpack##*/} 
   echo_title "$buildpack_name app detected"
 else
   echo_title "Unable to select a buildpack"
@@ -60,10 +68,8 @@ mkdir -p $cache_root
 
 ($selected_buildpack/bin/compile "$build_root" "$cache_root") | process
 
-
 echo_title "Discovering process types"
 release_output=$($selected_buildpack/bin/release "$build_root" "$cache_root") 
-
 
 default_types=$(echo "$release_output" | sed -ne '/^default/,/(\z|^[a-z])/  {
     /^[a-z]/n
@@ -93,10 +99,10 @@ echo_normal "Using slug_id: ${slug_id}"
 release_payload=$(echo -e "${release_output}\npstable:\n${procfile}\ncommit: $NEWREV\nslug_id: ${slug_id}")
 curl -0 -s -o /dev/null -X PUT -T /tmp/slug.tgz "$slug_put_url" 
 
-release_number=$(curl -s -X POST -H 'Content-Type: text/plain' --data-binary "$release_payload" "$push_code_url")
+release_number=$(curl --insecure -s -X POST -H 'Content-Type: text/plain' --data-binary "$release_payload" "$push_code_url")
 
 echo_title "Launching... done v" $release_number
-echo_normal "$dyno_web_url deployed to Openruko"
+echo_normal "$dyno_web_url deployed to Slotbox"
 echo_normal $'\n'
 
 # Tar and store slug

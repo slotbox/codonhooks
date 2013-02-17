@@ -2,14 +2,14 @@
 
 ## Introduction
 
-These two git hooks provide the functionality of the Heroku codon build server, they
-are implemented in Bash for simplicity. The pre-signed S3 URL to download the repo
+The `fetch-repo` script provides the functionality of the Heroku codon build server,
+it is implemented in Bash for simplicity. The pre-signed S3 URL to download the repo
 and a pre-signed PUT URL for the updated repo and compiled slug are provided to
-the job via environment variables (as part of the dyno execution manifest). The 
-hooks are mount binded on the repo/hooks directory during dyno creation to avoid
+the job via environment variables (as part of the dyno execution manifest). The script
+is mount binded on the repo/hooks directory during dyno creation to avoid
 duplication and to propagate hook changes without complexity.
 
-The dynohost runs git-receive-pack and thus these hooks  under the non-privilege 
+The dynohost runs `fetch-repo` under the non-privilege 
 rukouser account in an LXC dyno just like a provision dyno.
 
 ## Requirements

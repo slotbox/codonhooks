@@ -2,8 +2,13 @@
 
 set -e
 
-# first argument is the dir name of the example to compile in fixture
-example=$1
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+rm -fr "/tmp/cache"
+rm -rf /tmp/checkout
+mkdir -p /tmp/checkout
+cd /tmp/checkout
+git init
 
 export GIT_WORK_TREE=
 export dyno_web_url="test.mymachine.me"
@@ -16,11 +21,5 @@ if [ ! -d "$BUILDPACKS_DIR/buildpacks" ]; then
   tar xvzf "$BUILDPACKS_DIR/buildpacks.tgz" -C "$BUILDPACKS_DIR"
 fi
 
-rm -fr "/tmp/cache"
-
-OLDREV="master"
-NEWREV="master"
-REF="refs/heads/master"
-
-../pre-receive <<< "$OLDREV $NEWREV $REF"
+$dir/../fetch-repo $1
 

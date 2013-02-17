@@ -2,24 +2,14 @@
 
 set -e
 
-war_example="/tmp/checkout"
-
-rm -fr $war_example
-
-git clone --depth 1 https://github.com/heroku/devcenter-webapp-runner.git $war_example
-echo "java.runtime.version=1.7" > $war_example/system.properties
-
 export PATH=bin:$PATH
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 expect << EOF
   set timeout 30
-  spawn ./pre-receive-launcher.sh
+  spawn $dir/fetch-repo-launcher.sh https://github.com/heroku/devcenter-webapp-runner.git
   expect "Java app detected"
-  expect "Installing OpenJDK 1.7"
-  expect "Installing Maven"
-  expect "Installing settings.xml"
-  expect "mvn"
-  expect "Copying webapp-runner-7.0.22.jar to /tmp/checkout/target/dependency/webapp-runner.jar"
   expect "BUILD SUCCESS"
   expect "Discovering process types"
   expect "Compiled slug size is "
@@ -27,15 +17,21 @@ expect << EOF
   expect eof
 EOF
 
-cd $war_example
+echo "java.runtime.version=1.7" > /tmp/checkout/system.properties
+cd /tmp/checkout
 cat >> .env << EOF
 PATH=bin:.jdk/bin:$PATH
 PORT=9999
 EOF
 
+foreman start &
+pid=$!
+sleep 5
+
 expect << EOF
-  spawn foreman start
-  expect "deploying app from: /tmp/checkout/target/webappRunnerSample.war"
-  expect "Starting service Tomcat"
+  spawn curl localhost:9999
+  expect "Hello World!"
   expect eof
 EOF
+
+kill -2 $pid

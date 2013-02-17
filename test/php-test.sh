@@ -2,28 +2,10 @@
 
 set -e
 
-php_example="/tmp/checkout"
-
-rm -fr $php_example
-mkdir -p $php_example
-
-cat >> "$php_example/index.php" <<EOF
-  I have <?= 1+1 ?> foo.
-EOF
-
-cat >> "$php_example/Procfile" <<EOF
-web: sh boot.sh
-EOF
-
-dir=`pwd`
-cd $php_example
-git init
-git add -A
-git commit -m "first commit"
-cd $dir
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 expect << EOF
-  spawn ./pre-receive-launcher.sh
+  spawn $dir/fetch-repo-launcher.sh https://github.com/slotbox/php-hello-world.git
   expect "PHP app detected"
   expect "Bundling Apache version"
   expect "Bundling PHP version"
@@ -34,21 +16,25 @@ expect << EOF
   expect eof
 EOF
 
-rm -fr /app/*
-mv /tmp/checkout/* /app
+if [ "$(ls -A /app)" ]
+then
+  echo "/app directory not empty, might be something important, quitting".
+  exit 1
+fi
 
+rm -rf /app
+mkdir -p /app
+mv /tmp/checkout/* /app
 cd /app
+
 cat >> .env << EOF
 PATH=bin:$PATH
 PORT=9999
 EOF
 
-expect << EOF
-  spawn foreman start
-  expect "Launching apache"
-  expect "Apache/"
-  expect eof
-EOF
+foreman start &
+pid=$!
+sleep 5
 
 expect << EOF
   spawn curl localhost:9999
@@ -56,4 +42,7 @@ expect << EOF
   expect eof
 EOF
 
-pkill httpd
+kill -2 $pid
+killall httpd
+
+rm -rf /app
