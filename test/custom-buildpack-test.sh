@@ -7,9 +7,11 @@ custom_buildpack_example="/tmp/checkout"
 rm -fr $custom_buildpack_example
 mkdir -p $custom_buildpack_example
 
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 export BUILDPACK_URL=https://github.com/ryandotsmith/null-buildpack.git
 expect << EOF
-  spawn ./fetch-repo-launcher.sh https://github.com/slotbox/null-hello-world.git
+  spawn $dir/fetch-repo-launcher.sh https://github.com/slotbox/null-hello-world.git
   expect "Fetching custom buildpack"
   expect "Null app detected"
   expect "Nothing to do"
